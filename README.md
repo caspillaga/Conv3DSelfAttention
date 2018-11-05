@@ -1,8 +1,5 @@
 # something-something-v2-baseline
 
-**_Note_: An updated version of this repo is here: https://github.com/TwentyBN/smth-smth-v2-baseline-with-models
-It contains pre-trained models (on smth-smth) to facilitate extracting features on your own datasets!**
-
 Contains code to get you started with a baseline on version 2 of "something-something" dataset
 
 - Paper: https://arxiv.org/abs/1706.04261
