@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+from torchsummary import summary
 
 class Model(nn.Module):
     """
@@ -54,20 +54,11 @@ class Model(nn.Module):
             nn.Conv3d(256, 256, kernel_size=(3, 3, 3), stride=1, dilation=(1, 1, 1), padding=(1, 1, 1)),
             nn.BatchNorm3d(256),
             nn.ReLU(inplace=True),
-            nn.Conv3d(256, 512, kernel_size=(3, 3, 3), stride=(1, 2, 2), dilation=(1, 1, 1), padding=(1, 1, 1)),
-            nn.BatchNorm3d(512),
+            nn.Conv3d(256, 256, kernel_size=(3, 3, 3), stride=(1, 2, 2), dilation=(1, 1, 1), padding=(1, 1, 1)),
+            nn.BatchNorm3d(256),
             nn.ReLU(inplace=True),
             nn.Dropout3d(p=0.2),
         )
-
-        # self.block5 = nn.Sequential(
-        #     nn.Conv3d(512, 512, kernel_size=(3, 3, 3), stride=1, dilation=(1, 1, 1), padding=(1, 1, 1)),
-        #     nn.BatchNorm3d(512),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv3d(512, 512, kernel_size=(3, 3, 3), stride=(1, 2, 2), dilation=(1, 1, 1), padding=(1, 1, 1)),
-        #     nn.BatchNorm3d(512),
-        #     nn.ReLU(inplace=True),
-        # )
 
         self.block5 = nn.Sequential(
             nn.Conv3d(256, 256, kernel_size=(3, 3, 3), stride=(3, 1, 1), dilation=(1, 1, 1), padding=(1, 1, 1)),
@@ -90,19 +81,17 @@ class Model(nn.Module):
         x = self.block4(x)
         # print(x.size())
         x = self.block5(x)
-        # print(x.size())
+        #print(x.size())
 
         # flatten
         x = x.view(-1,288)
-        # print(x.size())
 
         return x
 
 
-if __name__ == "__main__":
-    num_classes = 174
-    input_tensor = torch.autograd.Variable(torch.rand(1, 3, 72, 84, 84))
-    model = Model(512)
 
-    output = model(input_tensor)
-    print(output.size())
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = Model().to(device)
+
+    summary(model, (3, 72, 84, 84))
