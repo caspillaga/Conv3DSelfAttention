@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from trnsf_Models import Encoder, Decoder
 
 
 class Model(nn.Module):
@@ -15,7 +16,21 @@ class Model(nn.Module):
     - Returns: a (batch_size, 512) sized tensor
     """
 
-    def __init__(self, column_units):
+    def __init__(
+        self, 
+        column_units,
+        num_classes,
+        n_src_vocab=100000,
+        n_tgt_vocab=100000,
+        transformer_d_model=512, 
+        transformer_d_inner=2048, 
+        transformer_dropout=0.1,
+        transformer_n_layers=6, 
+        transformer_n_head=8, 
+        transformer_d_k=64, 
+        transformer_len_max_seq=1000,
+        transformer_tgt_emb_prj_weight_sharing=True):
+
         super(Model, self).__init__()
         self.block1 = nn.Sequential(
             nn.Conv3d(3, 32, kernel_size=(3, 5, 5), stride=(1, 2, 2), dilation=(1, 1, 1), padding=(1, 2, 2)),
@@ -78,6 +93,42 @@ class Model(nn.Module):
             nn.ReLU(inplace=True),
         )
 
+        self.transformer_encoder = Encoder(
+            n_src_vocab=n_src_vocab, len_max_seq=transformer_len_max_seq,
+            d_word_vec=transformer_d_model, d_model=transformer_d_model, d_inner=transformer_d_inner,
+            n_layers=transformer_n_layers, n_head=transformer_n_head, d_k=transformer_d_k, d_v=transformer_d_v,
+            dropout=transformer_dropout)
+
+
+        self.transformer_decoder = Decoder(
+            n_tgt_vocab=n_tgt_vocab, len_max_seq=transformer_len_max_seq,
+            d_word_vec=transformer_d_model, d_model=transformer_d_model, d_inner=transformer_d_inner,
+            n_layers=transformer_n_layers, n_head=transformer_n_head, d_k=transformer_d_k, d_v=transformer_d_v,
+            dropout=transformer_dropout)
+
+        self.tgt_word_prj = nn.Linear(d_model, n_tgt_vocab, bias=False)
+        nn.init.xavier_normal_(self.tgt_word_prj.weight)
+
+        if tgt_emb_prj_weight_sharing:
+            # Share the weight matrix between target word embedding & the final logit dense layer
+            self.tgt_word_prj.weight = self.transformer_decoder.tgt_word_emb.weight
+            self.x_logit_scale = (d_model ** -0.5)
+        else:
+            self.x_logit_scale = 1.
+
+        self.classifier = nn.Sequential(
+            nn.Linear(256*288*2, 4096),
+            nn.ReLU(inplace=True),
+            # dropout
+            # batchnorm 1D
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            # dropout
+            # batchnorm 1D
+            nn.Linear(4096, num_classes),
+            # softmax
+        )
+
     def forward(self, x):
         # get convolution column features
 
@@ -93,10 +144,21 @@ class Model(nn.Module):
         # print(x.size())
 
         # flatten
-        x = x.view(-1,288)
+        x = x.view(-1,256,288)
         # print(x.size())
 
-        return x
+        # TO DO: interpretar como secuencia
+        tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+
+        enc_output, *_ = self.encoder(src_seq, src_pos)
+        #dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+        #seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
+
+        flattened = enc_output.view(-1,256*288*2)
+
+        classification = self.classifier(enc_output)
+
+        return classification#, seq_logit.view(-1, seq_logit.size(2))
 
 
 if __name__ == "__main__":
