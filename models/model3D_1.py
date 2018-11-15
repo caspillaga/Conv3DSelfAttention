@@ -119,14 +119,13 @@ class Model(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(256*288*2, 4096),
             nn.ReLU(inplace=True),
-            # dropout
-            # batchnorm 1D
+            nn.Dropout(p=0.3),
+            nn.BatchNorm1d(4096),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            # dropout
-            # batchnorm 1D
+            nn.Dropout(p=0.3),
+            nn.BatchNorm1d(4096),
             nn.Linear(4096, num_classes),
-            # softmax
         )
 
     def forward(self, x):
@@ -147,18 +146,17 @@ class Model(nn.Module):
         x = x.view(-1,256,288)
         # print(x.size())
 
-        # TO DO: interpretar como secuencia
-        tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+        src_pos = torch.FloatTensor([list(range(288))]*list(x.shape)[0])
 
-        enc_output, *_ = self.encoder(src_seq, src_pos)
+        enc_output, *_ = self.encoder(x, src_pos)
         #dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
         #seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
 
         flattened = enc_output.view(-1,256*288*2)
 
-        classification = self.classifier(enc_output)
+        result_pre_softmax = self.classifier(enc_output)
 
-        return classification#, seq_logit.view(-1, seq_logit.size(2))
+        return result_pre_softmax#, seq_logit.view(-1, seq_logit.size(2))
 
 
 if __name__ == "__main__":
